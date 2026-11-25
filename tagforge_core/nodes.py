@@ -15,9 +15,9 @@ class TagForgeTranslate:
     def INPUT_TYPES(cls):
         return {"required": {
             "text": ("STRING", {"multiline": True, "default": ""}),
-            "model": (MODELS, {"default": "anima", "tooltip": "Składnia docelowa: Anima (@artysta) albo Illustrious."}),
-            "tags_to": (["danbooru", "e621"], {"default": "danbooru", "tooltip": "Zestaw tagów na wyjściu."}),
-            "source": (["auto", "danbooru", "e621"], {"default": "auto", "tooltip": "Skąd pochodzą tagi wejściowe."}),
+            "model": (MODELS, {"default": "anima", "tooltip": "Target syntax: Anima (@artist) or Illustrious (plain artist name)."}),
+            "tags_to": (["danbooru", "e621"], {"default": "danbooru", "tooltip": "Tag vocabulary of the output."}),
+            "source": (["auto", "danbooru", "e621"], {"default": "auto", "tooltip": "Tag vocabulary of the input (auto = detect per tag)."}),
         }}
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -28,7 +28,7 @@ class TagForgeTranslate:
     def run(self, text, model, tags_to, source):
         out, report = tr.translate(text, model, tags_to, source, _tagdb())
         if report["blocked"]:
-            raise ValueError("TagForge: zablokowane treści z nieletnimi: " + ", ".join(sorted(set(report["blocked"]))))
+            raise ValueError("TagForge: blocked minor-related content: " + ", ".join(sorted(set(report["blocked"]))))
         return out, tr.format_report(report)
 
 
@@ -37,10 +37,10 @@ class TagForgeArtists:
     def INPUT_TYPES(cls):
         return {"required": {
             "artists": ("STRING", {"multiline": True, "default": "",
-                                   "tooltip": "Jeden artysta w linii albo po przecinku. Przycisk 'Przeglądaj' dopisuje tutaj."}),
+                                   "tooltip": "One artist per line or comma-separated. The 'Browse artists' button appends here."}),
             "model": (MODELS, {"default": "anima"}),
             "random_count": ("INT", {"default": 0, "min": 0, "max": 8,
-                                     "tooltip": "0 = użyj listy. >0 = losuj tylu z 2000 najpopularniejszych artystów (sprzed końca danych modelu)."}),
+                                     "tooltip": "0 = use the list. >0 = pick this many random artists from the 2000 most popular (older than the model's data cutoff)."}),
             "seed": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": True}),
         }}
 
@@ -54,10 +54,10 @@ class TagForgeArtists:
         if random_count:
             tagdb = _tagdb()
             if tagdb is None:
-                raise ValueError("TagForge: losowanie wymaga bazy (scripts/build_db.py).")
+                raise ValueError("TagForge: random artists need the tag database (scripts/build_db.py).")
             pool = [n for n, _, created in tagdb.artists("danbooru", limit=2000) if tr.before_cutoff(model, created)]
             if not pool:
-                raise ValueError("TagForge: brak artystów w bazie.")
+                raise ValueError("TagForge: no artists in the database.")
             names = random.Random(seed).sample(pool, min(random_count, len(pool)))
         return (", ".join(tr.format_artist(n, model) for n in names) + ("," if names else ""),)
 

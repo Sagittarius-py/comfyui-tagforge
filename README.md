@@ -1,37 +1,69 @@
-# TagForge (ComfyUI)
+# TagForge for ComfyUI
 
-Tag Translator, autouzupełnianie tagów i baza artystów dla modeli **Anima** i **Illustrious**.
+Tag translation, tag autocomplete and an artist list for **Anima** and **Illustrious** prompts.
+No extra Python packages: it uses only what ComfyUI already ships.
 
-## Start
-1. Zbuduj bazę tagów (Danbooru API + e621 db_export, kilka minut, kilkadziesiąt MB):
-   `..\..\.venv\Scripts\python.exe scripts\build_db.py`
-2. Zrestartuj ComfyUI.
+## Install
+1. Put this folder in `ComfyUI/custom_nodes/`.
+2. Build the tag database (Danbooru public API + e621 daily export; a few minutes, ~20 MB with `--min-count 100`).
+   Run it with ComfyUI's Python:
+   ```
+   python scripts/build_db.py --min-count 100
+   ```
+   Options: `--only danbooru|e621` refreshes one source; `--min-count N` skips tags with fewer posts.
+   The build writes to a temporary file and swaps it in at the end, so a failed run keeps the old database.
+3. Restart ComfyUI.
 
-Bez bazy działają tylko składnia i blokada.
+Without the database the nodes still work, but only syntax formatting and blocking are applied.
 
-## Node'y
-- **Tag Translator (TagForge)**: `text` → `text`, `report`.
-  - `model`: Anima (`@artysta`, spacje, `score_N` z podkreślnikiem) albo Illustrious (artysta bez `@`).
-  - `tags_to`: Danbooru albo e621. Tłumaczenie korzysta z aliasów, takich samych nazw i ręcznej tabeli `data/mapping_e621_danbooru.csv`.
-  - Nawiasy w nazwach są escape'owane (`pokemon \(creature\)`), bo ComfyUI czyta `(` jako wagę.
-  - Zdania (6+ słów albo z kropką) przechodzą bez zmian.
-  - `report` pokazuje: nieznane tagi, tłumaczenia, artystów i uwagi. Podepnij go pod `Preview Any`.
-- **Artist Picker (TagForge)**: lista artystów albo losowanie. Przycisk „Przeglądaj artystów…” otwiera listę z wyszukiwarką.
+## Nodes
+### Tag Translator (TagForge)
+`text` → `text`, `report`
 
-## Autouzupełnianie (Tag Builder)
-Działa w każdym polu tekstowym: ↑/↓, Enter/Tab, Esc.
-- Po wyjściu z pola: pomarańczowa ramka = nieznane tagi, czerwona = zablokowane. Lista jest w dymku po najechaniu.
-- Ustawienia: *Settings → TagForge* (model, źródło podpowiedzi, wł./wył.).
+- **model**: output syntax.
+  - `anima`: artists as `@name`, spaces instead of underscores (except `score_N`).
+  - `illustrious`: artists as plain names.
+- **tags_to**: output vocabulary, `danbooru` or `e621`. Translation uses tag aliases, identical names and a small manual table (`data/mapping_e621_danbooru.csv`), e.g. `anthro` ↔ `furry`, `male` ↔ `1boy`.
+- **source**: input vocabulary. `auto` detects it per tag.
+- Parentheses inside tag names are escaped (`pokemon \(creature\)`), because ComfyUI reads `(` as weight syntax. Weights like `(tag:1.4)` are kept.
+- Plain artist names found in the database get `@` automatically for Anima.
+- Sentences (6+ words or ending with a period) pass through unchanged.
+- Duplicates are removed, and lines are kept.
+- `report` lists unknown tags, translations, tags without an equivalent, artists and notes. Connect it to `Preview Any`.
 
-## Artyści
-- Lista artystów z Danbooru (z ≥100 postami), posortowana po liczbie postów.
-- Wyszukiwarka, link do profilu na Danbooru, kliknięcie w wiersz dopisuje artystę w składni modelu.
-- Losowanie (`random_count`) bierze tylko artystów, których tag powstał przed końcem danych modelu:
-  - Anima: wrzesień 2025, z karty modelu.
-  - Illustrious: koniec 2023 (Danbooru2023); karta nie podaje daty.
+### Artist Picker (TagForge)
+`artists` → `text` formatted for the chosen model.
 
-## Blokada
-Tagi i słowa oznaczające nieletnich (loli, shota, cub, young, child…, wiek < 18) zatrzymują generowanie. Nie da się tego wyłączyć.
+- **Browse artists…** opens a searchable list of Danbooru artists (100+ posts), sorted by post count, each with a link to the Danbooru profile. Click a row to append the artist.
+- **random_count** > 0 picks random artists from the 2000 most popular ones whose tag existed before the model's training data ended:
+  - Anima: September 2025, per its model card.
+  - Illustrious: end of 2023 (trained on Danbooru2023; the card gives no exact date).
 
-## Test
-`..\..\.venv\Scripts\python.exe tests\test_core.py`
+## Autocomplete
+Works in every text field in ComfyUI.
+
+- Suggestions appear after 2 characters. Use ↑/↓, Enter or Tab to insert, Esc to close.
+- Suggestions include aliases; colors mark the category (general, artist, character, copyright, meta).
+- When you leave a field, it gets an orange outline for unknown tags or a red one for blocked tags. Hover it to see the list.
+- Settings → **TagForge**:
+  - turn autocomplete on/off;
+  - artist syntax (Anima/Illustrious);
+  - suggestion source (Danbooru, e621, both).
+
+## Your own tags
+Quality and meta tags the models know but boorus don't (`masterpiece`, `best quality`, `newest`, `year 2024`, `score_9`, `explicit`…) are never reported as unknown.
+Add your own (e.g. LoRA trigger words) to `data/custom_tags.txt`, one per line. Changes apply without a restart.
+
+## Content block
+Tags and words referring to minors (loli, shota, cub, young, child…, ages under 18) stop the prompt with an error. This cannot be turned off.
+
+## Data sources
+- Danbooru: `danbooru.donmai.us` public API (tags with post counts and creation dates, active aliases).
+- e621: `static1.e621.net/data/db_export/` (`tags.csv.gz`, `tag_aliases.csv.gz`).
+
+Respect both sites' terms. The script waits between Danbooru requests.
+
+## Tests
+```
+python tests/test_core.py
+```

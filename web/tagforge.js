@@ -123,8 +123,8 @@ document.addEventListener("focusout", async (e) => {
   const { unknown, blocked } = await res.json();
   ta.classList.toggle("tf-blocked", blocked.length > 0);
   ta.classList.toggle("tf-bad", !blocked.length && unknown.length > 0);
-  ta.title = [blocked.length ? `ZABLOKOWANE: ${blocked.join(", ")}` : "",
-    unknown.length ? `Nieznane tagi: ${unknown.join(", ")}` : ""].filter(Boolean).join("\n");
+  ta.title = [blocked.length ? `BLOCKED: ${blocked.join(", ")}` : "",
+    unknown.length ? `Unknown tags: ${unknown.join(", ")}` : ""].filter(Boolean).join("\n");
 }, true);
 
 // ---------- artist browser ----------
@@ -133,10 +133,10 @@ function openArtists(node) {
   const modelW = node.widgets.find((w) => w.name === "model");
   const m = document.createElement("div");
   m.className = "tf-modal";
-  m.innerHTML = `<header><input type="text" placeholder="Szukaj artysty…">
+  m.innerHTML = `<header><input type="text" placeholder="Search artists…">
     <select class="mdl"><option value="anima">Anima</option><option value="illustrious">Illustrious</option></select>
-    <button class="close">Zamknij</button></header><div class="tf-list"></div>
-    <footer style="padding:8px;text-align:center"><button class="more">Więcej</button></footer>`;
+    <button class="close">Close</button></header><div class="tf-list"></div>
+    <footer style="padding:8px;text-align:center"><button class="more">More</button></footer>`;
   document.body.appendChild(m);
   const [q, mdl, grid] = ["input[type=text]", ".mdl", ".tf-list"].map((s) => m.querySelector(s));
   mdl.value = modelW?.value || "anima";
@@ -149,15 +149,15 @@ function openArtists(node) {
     const p = new URLSearchParams({ q: q.value, model: mdl.value, offset });
     const res = await api.fetchApi(`/tagforge/artists?${p}`);
     const data = await res.json();
-    if (!data.db) { grid.textContent = "Brak bazy - uruchom scripts/build_db.py i zrestartuj ComfyUI."; return; }
+    if (!data.db) { grid.textContent = "No tag database - run scripts/build_db.py and restart ComfyUI."; return; }
     offset = data.next;
     const have = chosen();
     for (const it of data.items) {
       const c = document.createElement("div");
       c.className = "tf-row" + (have.has(it.name) ? " added" : "");
-      c.innerHTML = `<span class="t"></span><span class="c"></span><a target="_blank" rel="noopener">profil ↗</a>`;
+      c.innerHTML = `<span class="t"></span><span class="c"></span><a target="_blank" rel="noopener">profile ↗</a>`;
       c.querySelector(".t").textContent = it.text;
-      c.querySelector(".c").textContent = `${it.count.toLocaleString("pl-PL")} postów`;
+      c.querySelector(".c").textContent = `${it.count.toLocaleString()} posts`;
       const link = c.querySelector("a");
       link.href = it.url;
       link.addEventListener("click", (e) => e.stopPropagation());
@@ -184,10 +184,10 @@ function openArtists(node) {
 app.registerExtension({
   name: "TagForge",
   settings: [
-    { id: "TagForge.Autocomplete", name: "TagForge: autouzupełnianie i sprawdzanie tagów", type: "boolean", defaultValue: true },
-    { id: "TagForge.Model", name: "TagForge: składnia artystów (Anima = @nazwa)", type: "combo",
+    { id: "TagForge.Autocomplete", name: "TagForge: tag autocomplete and checking", type: "boolean", defaultValue: true },
+    { id: "TagForge.Model", name: "TagForge: artist syntax (Anima = @name)", type: "combo",
       options: ["anima", "illustrious"], defaultValue: "anima" },
-    { id: "TagForge.Source", name: "TagForge: źródło podpowiedzi", type: "combo",
+    { id: "TagForge.Source", name: "TagForge: suggestion source", type: "combo",
       options: ["danbooru", "e621", "both"], defaultValue: "danbooru" },
   ],
   setup() {
@@ -197,6 +197,6 @@ app.registerExtension({
   },
   nodeCreated(node) {
     if (node.comfyClass === "TagForgeArtists")
-      node.addWidget("button", "Przeglądaj artystów…", null, () => openArtists(node), { serialize: false });
+      node.addWidget("button", "Browse artists…", null, () => openArtists(node), { serialize: false });
   },
 });

@@ -1,2 +1,2 @@
-# Twoje tagi, których nie ma na booru (triggery LoRA itp.) - jeden w linii. Nie będą oznaczane jako nieznane.
+# Your own tags that boorus don't have (LoRA triggers etc.), one per line. They are never reported as unknown.
 addmicrodetails

@@ -110,9 +110,9 @@ def main():
     try:
         os.replace(tmp, db.DB_PATH)
     except PermissionError:
-        print(f"Baza jest otwarta przez ComfyUI. Zamknij ComfyUI i przenieś ręcznie:\n  {tmp} -> {db.DB_PATH}")
+        print(f"The database is in use by ComfyUI. Close ComfyUI and move it manually:\n  {tmp} -> {db.DB_PATH}")
         return 1
-    print(f"OK -> {db.DB_PATH} (zrestartuj ComfyUI albo odśwież stronę)")
+    print(f"OK -> {db.DB_PATH} (restart ComfyUI to use it)")
 
 
 if __name__ == "__main__":

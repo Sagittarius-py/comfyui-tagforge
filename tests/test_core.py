@@ -17,7 +17,9 @@ def fixture():
         ("e621", "anthro", 0, 3000000, None), ("e621", "espeon", 5, 20000, None), ("e621", "eyes_closed", 0, 500000, None),
         ("e621", "quasarcake_(artist)", 1, 900, None), ("e621", "male", 0, 4000000, None), ("e621", "young", 0, 1, None),
     ])
-    con.executemany("INSERT INTO aliases VALUES (?,?,?)", [("danbooru", "miku", "hatsune_miku"),
+    con.executemany("INSERT INTO tags VALUES (?,?,?,?,?)", [("e621", "glistening_fur", 0, 5000, None)])
+    con.executemany("INSERT INTO aliases VALUES (?,?,?)", [("e621", "shiny_fur", "glistening_fur"),
+                                                          ("danbooru", "miku", "hatsune_miku"),
                                                           ("danbooru", "lolicon", "loli")])
     return db.TagDB(con)
 
@@ -28,7 +30,12 @@ def run():
     # e621 -> danbooru, Anima syntax
     out, rep = tr.translate("anthro, male, eyes_closed, quasarcake_(artist), (espeon:1.4), pink_body", "anima", tagdb=t)
     assert out == "furry, 1boy, closed eyes, @quasarcake, (espeon:1.4), pink fur,", out
-    assert "Anima potrzebuje" in tr.format_report(rep)
+    assert "Anima needs higher weights" in tr.format_report(rep)
+
+    # e621-only alias with no danbooru equivalent keeps the user's word
+    out, rep = tr.translate("shiny fur", "anima", tagdb=t)
+    assert out == "shiny fur,", out
+    assert rep["no_equivalent"] == ["shiny_fur"], rep
 
     # danbooru -> e621
     out, _ = tr.translate("1boy, furry, closed eyes", "illustrious", tags_to="e621", tagdb=t)

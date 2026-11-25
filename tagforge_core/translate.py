@@ -129,6 +129,7 @@ def format_artist(name, model):
 # ---- translation --------------------------------------------------------------------------
 def _to_target(tagdb, name, src, dst, report):
     """Map canonical tag from src set to dst set. Returns (name, category or None)."""
+    original = name
     found = tagdb.lookup(src, name) if tagdb else None
     if found:
         name = found[0]
@@ -136,9 +137,9 @@ def _to_target(tagdb, name, src, dst, report):
         return name, (found[1] if found else None)
     manual = manual_map()[src].get(name)
     if manual is not None:
-        report["translated"].append(f"{name} -> {manual or '(usunięty)'}")
+        report["translated"].append(f"{name} -> {manual or '(dropped)'}")
         return manual, None
-    candidates = [name]
+    candidates = list(dict.fromkeys([name, original]))
     if name.endswith("_(artist)"):
         candidates.append(name[: -len("_(artist)")])
     for cand in candidates:
@@ -147,15 +148,16 @@ def _to_target(tagdb, name, src, dst, report):
             if hit[0] != name:
                 report["translated"].append(f"{name} -> {hit[0]}")
             return hit[0], hit[1]
-    report["no_equivalent"].append(name)
-    return name, (found[1] if found else None)
+    # no equivalent: keep what the user wrote, not the source site's alias (shiny_fur, not glistening_fur)
+    report["no_equivalent"].append(original)
+    return original, (found[1] if found else None)
 
 
 def translate(text, model="anima", tags_to="danbooru", source="auto", tagdb=None):
     """-> (prompt, report dict). Lines are kept, chunks re-joined with ', '."""
     report = {"blocked": [], "translated": [], "no_equivalent": [], "unknown": [], "artists": [], "notes": []}
     if tagdb is None:
-        report["notes"].append("Brak bazy tagów (uruchom scripts/build_db.py) - tylko składnia i blokada.")
+        report["notes"].append("No tag database (run scripts/build_db.py) - only syntax and blocking are applied.")
     seen, out_lines = set(), []
     for line in text.splitlines():
         out = []
@@ -200,15 +202,15 @@ def translate(text, model="anima", tags_to="danbooru", source="auto", tagdb=None
         if out:
             out_lines.append(", ".join(out) + ",")
     if model == "illustrious" and any(SCORE.match(canonical(c)) for c in re.split(r"[,\n]", text)):
-        report["notes"].append("score_* to tagi Pony/Animy - Illustrious ich nie zna.")
+        report["notes"].append("score_* are Pony/Anima tags - Illustrious does not know them.")
     if model == "anima" and re.search(r":\s*1\.[0-4]\)", "\n".join(out_lines)):
-        report["notes"].append("Anima potrzebuje wyższych wag niż SDXL (karta modelu: np. (chibi:2)).")
+        report["notes"].append("Anima needs higher weights than SDXL (model card example: (chibi:2)).")
     return "\n".join(out_lines), report
 
 
 def format_report(report):
-    labels = [("blocked", "ZABLOKOWANE"), ("translated", "Przetłumaczone"), ("no_equivalent", "Bez odpowiednika"),
-              ("unknown", "Nieznane tagi"), ("artists", "Artyści"), ("notes", "Uwagi")]
+    labels = [("blocked", "BLOCKED"), ("translated", "Translated"), ("no_equivalent", "No equivalent"),
+              ("unknown", "Unknown tags"), ("artists", "Artists"), ("notes", "Notes")]
     lines = [f"{label}: {', '.join(dict.fromkeys(report[key]))}" for key, label in labels if report[key]]
     return "\n".join(lines) or "OK"
 
