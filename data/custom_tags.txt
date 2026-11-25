@@ -1,0 +1,2 @@
+# Twoje tagi, których nie ma na booru (triggery LoRA itp.) - jeden w linii. Nie będą oznaczane jako nieznane.
+addmicrodetails
