@@ -27,7 +27,17 @@ const css = `
 .tf-row{display:flex;gap:12px;align-items:center;padding:6px 8px;border-bottom:1px solid #2a2a35;cursor:pointer}
 .tf-row:hover{background:#262636}.tf-row.added .t{color:#9ece6a}
 .tf-row .t{flex:1;word-break:break-word}.tf-row .c{color:#999;font-variant-numeric:tabular-nums}
-.tf-row a{color:#7aa2f7;text-decoration:none}.tf-row a:hover{text-decoration:underline}`;
+.tf-row a{color:#7aa2f7;text-decoration:none}.tf-row a:hover{text-decoration:underline}
+.tf-rt{display:flex;flex-direction:column;gap:6px;height:100%;font:12px sans-serif}
+.tf-rt-bar{display:flex;flex-wrap:wrap;gap:4px}
+.tf-rt-bar button{background:#333;color:#ccc;border:1px solid #555;border-radius:6px 6px 0 0;padding:3px 9px;cursor:pointer}
+.tf-rt-bar button.on{background:#4a6fa5;color:#fff;border-color:#6d8fc4}
+.tf-rt textarea{flex:1;min-height:120px;resize:none;background:#1e1e1e;color:#ddd;border:1px solid #555;border-radius:4px;padding:6px;font:12px monospace}
+.tf-rt-info{color:#999;padding:6px}`;
+
+// window.prompt/confirm do nothing in ComfyUI Desktop, so use ComfyUI's own dialogs
+const ask = (title, defaultValue = "") => app.extensionManager.dialog.prompt({ title, message: title, defaultValue });
+const sure = (message) => app.extensionManager.dialog.confirm({ title: "TagForge", message });
 
 // ---------- autocomplete ----------
 let drop = null, items = [], sel = 0, target = null, reqId = 0;
@@ -271,7 +281,7 @@ function openArtists(node) {
   m.querySelector(".save").addEventListener("click", async () => {
     const artists = widget.value.trim().replace(/,\s*$/, "");
     if (!artists) return alert("The artists field is empty.");
-    const name = prompt("Preset name:");
+    const name = await ask("Preset name:");
     if (!name?.trim()) return;
     lists.presets = [...lists.presets, { name: name.trim(), artists }];
     await saveLists({ presets: lists.presets });
@@ -281,6 +291,91 @@ function openArtists(node) {
   m.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") m.remove(); });
   api.fetchApi("/tagforge/lists").then((r) => r.json()).then((l) => { lists = l; load(true); });
   q.focus();
+}
+
+// ---------- Random Text: tabs of options, stored as JSON in the hidden "data" widget ----------
+const RANDOM_TAB = "*";
+
+function randomTextTabs(node) {
+  const data = node.widgets.find((w) => w.name === "data");
+  data.hidden = true;
+  const root = document.createElement("div");
+  root.className = "tf-rt";
+  const bar = document.createElement("div");
+  bar.className = "tf-rt-bar";
+  const area = document.createElement("textarea");
+  area.placeholder = "One option per line, # = comment";
+  const info = document.createElement("div");
+  info.className = "tf-rt-info";
+  root.append(bar, area, info);
+
+  const state = () => JSON.parse(data.value);
+  const save = (s) => { data.value = JSON.stringify(s); render(); };
+  const button = (label, title, onclick, on = false) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.title = title;
+    b.className = on ? "on" : "";
+    b.onclick = onclick;
+    bar.append(b);
+    return b;
+  };
+  const newName = async (title, current = "") => {
+    const name = (await ask(title, current))?.trim();
+    return name && !state().tabs.some((t) => t.name === name) ? name : null;
+  };
+
+  // handlers read the state when clicked, so text typed since the last render is kept
+  function render() {
+    const s = state();
+    bar.replaceChildren();
+    for (const { name } of s.tabs) {
+      const b = button(name, "Click: use this tab · double-click: rename", () => save({ ...state(), active: name }), s.active === name);
+      b.ondblclick = async () => {
+        const renamed = await newName("Rename tab:", name);
+        if (!renamed) return;
+        const cur = state();
+        if (cur.active === name) cur.active = renamed;
+        cur.tabs.find((t) => t.name === name).name = renamed;
+        save(cur);
+      };
+    }
+    button("🎲", "Random tab", () => save({ ...state(), active: RANDOM_TAB }), s.active === RANDOM_TAB);
+    button("+", "Add tab", async () => {
+      const name = await newName("New tab name:");
+      if (!name) return;
+      const cur = state();
+      cur.tabs.push({ name, text: "" });
+      save({ ...cur, active: name });
+    });
+    const tab = s.tabs.find((t) => t.name === s.active);
+    if (tab) {
+      button("×", `Delete tab "${tab.name}"`, async () => {
+        if (!(await sure(`Delete tab "${tab.name}" and its options?`))) return;
+        const cur = state();
+        cur.tabs = cur.tabs.filter((t) => t.name !== tab.name);
+        save({ ...cur, active: cur.tabs[0]?.name ?? RANDOM_TAB });
+      });
+    }
+    area.style.display = tab ? "" : "none";
+    info.style.display = tab ? "none" : "";
+    info.textContent = `Picks a random tab from: ${s.tabs.map((t) => t.name).join(", ") || "(no tabs)"}`;
+    if (tab && area.value !== tab.text) area.value = tab.text;
+  }
+
+  area.oninput = () => {
+    const s = state();
+    s.tabs.find((t) => t.name === s.active).text = area.value;
+    data.value = JSON.stringify(s);
+  };
+  node.addDOMWidget("tabs", "tagforge_tabs", root, { serialize: false, getMinHeight: () => 200 });
+  render();
+  const configure = node.onConfigure;
+  node.onConfigure = function () {
+    const r = configure?.apply(this, arguments);
+    render();
+    return r;
+  };
 }
 
 app.registerExtension({
@@ -300,5 +395,6 @@ app.registerExtension({
   nodeCreated(node) {
     if (node.comfyClass === "TagForgeArtists")
       node.addWidget("button", "Browse artists…", null, () => openArtists(node), { serialize: false });
+    if (node.comfyClass === "TagForgeRandomText") randomTextTabs(node);
   },
 });

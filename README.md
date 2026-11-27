@@ -46,6 +46,14 @@ Without the database the nodes still work, but only syntax formatting and blocki
     Built-in presets (`data/presets.json`) are published Illustrious/NoobAI mixes with source links. Most were shown on NoobAI merges and their sources rarely describe the look, so test them on a fixed seed.
 - Favorites, blacklist and your presets are stored in `data/user_lists.json` (not tracked by git).
 
+### Random Text (TagForge)
+`seed` → `text`, `tab`
+
+Picks one random option from the active tab.
+- Each tab holds a list, one option per line (`#` = comment). Click a tab to use it, double-click to rename, **+** adds a tab, **×** deletes the active one.
+- **🎲** also picks the tab at random (empty tabs are skipped).
+- The same seed gives the same pick. `tab` outputs the name of the tab used.
+
 ## Autocomplete
 Works in every text field in ComfyUI.
 

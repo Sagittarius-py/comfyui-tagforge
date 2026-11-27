@@ -1,3 +1,4 @@
+import json
 import random
 
 from . import db, lists, translate as tr
@@ -74,6 +75,52 @@ class TagForgeArtists:
         return (", ".join(out) + ("," if out else ""),)
 
 
-NODE_CLASS_MAPPINGS = {"TagForgeTranslate": TagForgeTranslate, "TagForgeArtists": TagForgeArtists}
+RANDOM_TAB = "*"
+RANDOM_TEXT_DEFAULT = json.dumps({"active": "background", "tabs": [
+    {"name": "background", "text": "forest\nbeach\ncity street at night"},
+    {"name": "weather", "text": "sunny\nrain\nsnow"},
+]})
+
+
+def text_options(data):
+    """{tab name: options} from the tabs JSON, without blank lines, # comments and empty tabs."""
+    tabs = {}
+    for tab in json.loads(data)["tabs"]:
+        lines = [l.strip() for l in tab["text"].splitlines() if l.strip() and not l.strip().startswith("#")]
+        if lines:
+            tabs[tab["name"]] = lines
+    return tabs
+
+
+class TagForgeRandomText:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "data": ("STRING", {"default": RANDOM_TEXT_DEFAULT}),  # edited through the tabs in the node
+            "seed": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": True}),
+        }}
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("text", "tab")
+    FUNCTION = "run"
+    CATEGORY = "TagForge"
+    DESCRIPTION = "Picks one random option (one per line, # = comment) from the active tab. The 🎲 tab also picks the tab at random."
+
+    def run(self, data, seed):
+        tabs = text_options(data)
+        active = json.loads(data)["active"]
+        rng = random.Random(seed)
+        if active == RANDOM_TAB:
+            if not tabs:
+                raise ValueError("TagForge: all tabs are empty - add options, one per line.")
+            active = rng.choice(sorted(tabs))
+        if active not in tabs:
+            raise ValueError(f"TagForge: tab '{active}' has no options - add some, one per line.")
+        return rng.choice(tabs[active]), active
+
+
+NODE_CLASS_MAPPINGS = {"TagForgeTranslate": TagForgeTranslate, "TagForgeArtists": TagForgeArtists,
+                       "TagForgeRandomText": TagForgeRandomText}
 NODE_DISPLAY_NAME_MAPPINGS = {"TagForgeTranslate": "Tag Translator (TagForge)",
-                              "TagForgeArtists": "Artist Picker (TagForge)"}
+                              "TagForgeArtists": "Artist Picker (TagForge)",
+                              "TagForgeRandomText": "Random Text (TagForge)"}

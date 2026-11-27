@@ -1,4 +1,5 @@
 """Self-check: python tests/test_core.py  (no ComfyUI, no network, in-memory DB)."""
+import json
 import os
 import sys
 import tempfile
@@ -115,6 +116,22 @@ def run():
         except ValueError:
             pass
         assert lists.builtin(), "data/presets.json must ship presets"
+
+    # Random Text: tabs JSON, comments and empty tabs skipped, seed-stable picks
+    def tabs(active, **t):
+        return json.dumps({"active": active, "tabs": [{"name": k, "text": v} for k, v in t.items()]})
+    assert nodes.text_options(tabs("a", a="x\n# note\n\n y ", b="", c="z")) == {"a": ["x", "y"], "c": ["z"]}
+    assert nodes.text_options(nodes.RANDOM_TEXT_DEFAULT)
+    rt = nodes.TagForgeRandomText()
+    assert rt.run(tabs("b", a="x\ny", b="z"), 1) == ("z", "b")
+    assert rt.run(tabs("a", a="x\ny\nw"), 5) == rt.run(tabs("a", a="x\ny\nw"), 5)
+    assert rt.run(tabs(nodes.RANDOM_TAB, a="x", b="", c="z"), 3)[1] in ("a", "c")
+    for bad in (tabs("b", a="x", b=""), tabs(nodes.RANDOM_TAB, a="")):
+        try:
+            rt.run(bad, 0)
+            raise AssertionError(bad)
+        except ValueError:
+            pass
     print("OK")
 
 
