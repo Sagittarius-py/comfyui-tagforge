@@ -47,6 +47,9 @@ def run():
     assert out == "score_9, @quasarcake, hatsune miku, pokemon \\(creature\\),\nA cozy bedroom at night with warm light.,", out
     out, _ = tr.translate("@quasarcake, hatsune miku", "illustrious", tagdb=t)
     assert out == "quasarcake, hatsune miku,", out
+    out, rep = tr.translate("embedding:lazypos, (embedding:lazyneg:0.8), miku", "illustrious", tagdb=t)
+    assert out == "embedding:lazypos, (embedding:lazyneg:0.8), hatsune miku,", out
+    assert rep["unknown"] == [], rep
 
     # unknown tags and duplicates
     out, rep = tr.translate("purpla short hair, espeon, espeon", "anima", tagdb=t)

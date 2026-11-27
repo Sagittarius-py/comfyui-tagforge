@@ -117,7 +117,8 @@ def parse_chunk(chunk):
         if inner.lower().startswith(prefix):
             inner, artist = inner[len(prefix):].strip(), True
             break
-    natural = inner.endswith(".") or len(inner.split()) >= 6
+    # ComfyUI embeddings are not tags: pass them through like sentences
+    natural = inner.endswith(".") or len(inner.split()) >= 6 or inner.lower().startswith("embedding:")
     return {"raw": raw, "inner": inner, "weight": weight, "artist": artist, "natural": natural}
 
 
