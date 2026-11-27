@@ -35,9 +35,16 @@ Without the database the nodes still work, but only syntax formatting and blocki
 `artists` → `text` formatted for the chosen model.
 
 - **Browse artists…** opens a searchable list of Danbooru artists (100+ posts), sorted by post count, each with a link to the Danbooru profile. Click a row to append the artist.
-- **random_count** > 0 picks random artists from the 2000 most popular ones whose tag existed before the model's training data ended:
-  - Anima: September 2025, per its model card.
-  - Illustrious: end of 2023 (trained on Danbooru2023; the card gives no exact date).
+- **random_count** > 0 picks random artists. **random_from** sets the pool:
+  - `top`: the 2000 most popular artists whose tag existed before the model's training data ended (Anima: September 2025, per its model card; Illustrious: end of 2023, Danbooru2023).
+  - `favorites`: your starred artists.
+  Blacklisted artists are never picked.
+- Weights are kept: `(name:0.8)` comes out as `(name:0.8)` or `(@name:0.8)` for Anima.
+- The browser has tabs:
+  - **★ Favorites** and **⛔ Blacklist**: star or ban artists from any list. Banned artists are hidden from *All*.
+  - **Presets**: click to append a mix. *Save current as preset* stores the node's current artists under a name.
+    Built-in presets (`data/presets.json`) are published Illustrious/NoobAI mixes with source links. Most were shown on NoobAI merges and their sources rarely describe the look, so test them on a fixed seed.
+- Favorites, blacklist and your presets are stored in `data/user_lists.json` (not tracked by git).
 
 ## Autocomplete
 Works in every text field in ComfyUI.

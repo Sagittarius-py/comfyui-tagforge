@@ -1,0 +1,86 @@
+[
+ {
+  "name": "Baseline: ningen mame + ciloranko + sho",
+  "artists": "ningen mame, ciloranko, sho \\(sho lwlw\\)",
+  "look": "Official PixAI example for Illustrious v1.0; the mix repeated most often across sources. Look not described (likely soft, painterly modern anime).",
+  "source": "https://x.com/PixAI_Official/status/1889207771889123821"
+ },
+ {
+  "name": "Fn-Mix: uekura eku mix",
+  "artists": "uekura eku, ningen mame, ciloranko",
+  "look": "Fn-Mix Noob XL v1.76. Look not described (likely soft, detailed modern anime).",
+  "source": "https://civarchive.com/models/1036874"
+ },
+ {
+  "name": "Fn-Mix: itefu + miv4t",
+  "artists": "itefu, miv4t, (dishwasher1910:0)",
+  "look": "Fn-Mix Noob XL v1.76. dishwasher1910 at 0 suppresses bleed. Look not described.",
+  "source": "https://civarchive.com/models/1036874"
+ },
+ {
+  "name": "Fn-Mix: imamura ryou + sho + krenz",
+  "artists": "imamura ryou, sho \\(sho lwlw\\), krenz",
+  "look": "Fn-Mix Noob XL v1.5. Look not described (krenz suggests painterly, strong values).",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: souji hougu + reoen + yoshinari you",
+  "artists": "souji hougu, reoen, yoshinari you",
+  "look": "Fn-Mix Noob XL v1.5. Look not described (yoshinari you suggests animation-style cel shading).",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: dorontabi + rei",
+  "artists": "dorontabi, (rei \\(sanbonzakura\\):0.5)",
+  "look": "Fn-Mix Noob XL v1.5. Look not described (likely soft pastel colors).",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: dsmile + rei + healthyman",
+  "artists": "(dsmile:0.825), rei \\(sanbonzakura\\), (healthyman:0.8)",
+  "look": "Fn-Mix Noob XL v1.0/1.4. Look not described.",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: ciloranko + freng",
+  "artists": "ciloranko, freng, (fkey:0.75), (kanzarin:0.75)",
+  "look": "Fn-Mix Noob XL v1.0/1.4. Look not described (likely soft, detailed bishoujo).",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: hiro + reoen + baffu",
+  "artists": "(quasarcake:0.5), (reoen:0.95), (hiro \\(dismaless\\):1.05), (baffu:0.85)",
+  "look": "Fn-Mix Noob XL v1.0/1.4. Look not described.",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: yd + as109 + ciloranko",
+  "artists": "yd \\(orange maru\\), as109, ciloranko",
+  "look": "Fn-Mix Noob XL v1.0/1.4. Look not described (likely clean cel with a soft, glossy render).",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Fn-Mix: yoneyama mai + ningen mame",
+  "artists": "yoneyama mai, ningen mame, (fenrir \\(fenriluuu\\):0)",
+  "look": "Fn-Mix Noob XL v1.0/1.4. fenrir at 0 suppresses bleed. Look not described (likely vivid, graphic colors).",
+  "source": "https://prompthero.com/ai-models/fn-mix-noob-xl-download"
+ },
+ {
+  "name": "Illustrious v0.1: mzet + sincos + jiao chang",
+  "artists": "(mzet:1.2), sincos, (jiao chang:1.2)",
+  "look": "Example for Illustrious XL v0.1 (the only mix tested on base Illustrious). Look not described.",
+  "source": "https://wiki.monai.art/en/models/illustrious_xl"
+ },
+ {
+  "name": "NoobAI: wanke + ciloranko",
+  "artists": "wanke, ciloranko",
+  "look": "NoobAI-XL Epsilon 0.5, known only from a search snippet. Look not described.",
+  "source": "https://yodayo.com/posts/e01eaaf6-676b-47a7-8bdf-599c42b98984"
+ },
+ {
+  "name": "LimeMIX recommended (6 artists)",
+  "artists": "ciloranko, ningen mame, ask \\(askzy\\), (eonsang:0.7), atie1225, (wanke:0.9)",
+  "look": "LimeMIX_XL v1.1 (NoobAI eps 1.1 + Illustrious 1.1) house style. Page describes only stability at high resolution, not the look.",
+  "source": "https://civarchive.com/models/1463920"
+ }
+]

@@ -19,7 +19,8 @@ const css = `
 .tf-bad{outline:2px solid #e0af68 !important}.tf-blocked{outline:2px solid #f7768e !important}
 .tf-modal{position:fixed;inset:5%;z-index:10001;background:#181820;border:1px solid #444;border-radius:10px;
   display:flex;flex-direction:column;color:#ddd;font:13px sans-serif}
-.tf-modal header{display:flex;gap:8px;padding:10px;border-bottom:1px solid #333;align-items:center}
+.tf-modal header{display:flex;gap:8px;padding:10px;border-bottom:1px solid #333;align-items:center;flex-wrap:wrap}
+.tf-modal .tabs{display:flex;gap:4px}
 .tf-modal input[type=text]{flex:1;padding:6px;background:#222;color:#ddd;border:1px solid #444;border-radius:4px}
 .tf-modal select,.tf-modal button{padding:6px;background:#2a2a38;color:#ddd;border:1px solid #444;border-radius:4px}
 .tf-list{flex:1;overflow:auto;padding:6px 10px}
@@ -128,56 +129,157 @@ document.addEventListener("focusout", async (e) => {
 }, true);
 
 // ---------- artist browser ----------
+const canon = (s) => s.trim().replace(/^\(/, "").replace(/:[0-9.]+\)$/, "").replace(/^@/, "").replace(/\\/g, "")
+  .replace(/\s+/g, "_").toLowerCase();
+const profileUrl = (name) => "https://danbooru.donmai.us/artists/show_or_new?name=" + encodeURIComponent(name);
+
+async function saveLists(update) {
+  const res = await api.fetchApi("/tagforge/lists", { method: "POST", body: JSON.stringify(update) });
+  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+}
+
 function openArtists(node) {
   const widget = node.widgets.find((w) => w.name === "artists");
   const modelW = node.widgets.find((w) => w.name === "model");
   const m = document.createElement("div");
   m.className = "tf-modal";
-  m.innerHTML = `<header><input type="text" placeholder="Search artists…">
+  m.innerHTML = `<header><div class="tabs"><button data-tab="all">All</button><button data-tab="fav">★ Favorites</button>
+    <button data-tab="ban">⛔ Blacklist</button><button data-tab="presets">Presets</button></div>
+    <input type="text" placeholder="Search artists…">
     <select class="mdl"><option value="anima">Anima</option><option value="illustrious">Illustrious</option></select>
-    <button class="close">Close</button></header><div class="tf-list"></div>
-    <footer style="padding:8px;text-align:center"><button class="more">More</button></footer>`;
+    <button class="save">Save current as preset</button><button class="close">Close</button></header>
+    <div class="tf-list"></div><footer style="padding:8px;text-align:center"><button class="more">More</button></footer>`;
   document.body.appendChild(m);
-  const [q, mdl, grid] = ["input[type=text]", ".mdl", ".tf-list"].map((s) => m.querySelector(s));
+  const [q, mdl, grid, more] = ["input[type=text]", ".mdl", ".tf-list", ".more"].map((s) => m.querySelector(s));
   mdl.value = modelW?.value || "anima";
-  let offset = 0;
-  const chosen = () => new Set(widget.value.split(/[,\n]/).map((s) => s.trim().replace(/^@/, "").replace(/\\/g, "")
-    .replace(/ /g, "_").toLowerCase()).filter(Boolean));
+  let offset = 0, tab = "all", lists = { favorites: [], blacklist: [], presets: [], builtin: [] };
+  const fmt = (name) => (mdl.value === "anima" ? "@" : "") + display(name);
+  const chosen = () => new Set(widget.value.split(/[,\n]/).map(canon).filter(Boolean));
+
+  function append(text) {
+    const v = widget.value.trim();
+    widget.value = (v ? v.replace(/,?$/, ",\n") : "") + text;
+    widget.callback?.(widget.value);
+    app.graph.setDirtyCanvas(true, true);
+  }
+
+  async function toggle(key, name) {
+    const set = new Set(lists[key]);
+    set.has(name) ? set.delete(name) : set.add(name);
+    lists[key] = [...set];
+    await saveLists({ [key]: lists[key] });
+  }
+
+  function artistRow(name, extra) {
+    const c = document.createElement("div");
+    c.className = "tf-row" + (chosen().has(name) ? " added" : "");
+    c.innerHTML = `<span class="t"></span><span class="c"></span><button class="fav" title="Favorite"></button>
+      <button class="ban" title="Blacklist: never picked at random, hidden from All"></button><a target="_blank" rel="noopener">profile ↗</a>`;
+    c.querySelector(".t").textContent = fmt(name);
+    c.querySelector(".c").textContent = extra || "";
+    const fav = c.querySelector(".fav"), ban = c.querySelector(".ban");
+    const paint = () => {
+      fav.textContent = lists.favorites.includes(name) ? "★" : "☆";
+      ban.textContent = lists.blacklist.includes(name) ? "Unban" : "⛔";
+    };
+    paint();
+    fav.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await toggle("favorites", name); paint();
+      if (tab === "fav") c.remove();
+    });
+    ban.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await toggle("blacklist", name); paint();
+      if (tab !== "fav") c.remove();
+    });
+    const link = c.querySelector("a");
+    link.href = profileUrl(name);
+    link.addEventListener("click", (e) => e.stopPropagation());
+    c.addEventListener("click", () => { append(fmt(name)); c.classList.add("added"); });
+    return c;
+  }
+
+  function presetRow(p, own) {
+    const c = document.createElement("div");
+    c.className = "tf-row";
+    c.innerHTML = `<span class="t"><b></b><br><small class="a"></small><br><small class="d" style="color:#999"></small></span>`;
+    c.querySelector("b").textContent = p.name;
+    c.querySelector(".a").textContent = p.artists;
+    c.querySelector(".d").textContent = p.look || "";
+    if (own) {
+      const del = document.createElement("button");
+      del.textContent = "Delete";
+      del.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        lists.presets = lists.presets.filter((x) => x !== p);
+        await saveLists({ presets: lists.presets });
+        c.remove();
+      });
+      c.appendChild(del);
+    } else if (p.source) {
+      const a = document.createElement("a");
+      Object.assign(a, { href: p.source, target: "_blank", rel: "noopener", textContent: "source ↗" });
+      a.addEventListener("click", (e) => e.stopPropagation());
+      c.appendChild(a);
+    }
+    c.addEventListener("click", () => { append(p.artists); c.classList.add("added"); });
+    return c;
+  }
+
+  function heading(text) {
+    const h = document.createElement("div");
+    h.style.cssText = "padding:10px 8px 4px;color:#e0af68;font-weight:bold";
+    h.textContent = text;
+    grid.appendChild(h);
+  }
 
   async function load(reset) {
     if (reset) { offset = 0; grid.innerHTML = ""; }
+    m.querySelectorAll(".tabs button").forEach((b) => b.style.outline = b.dataset.tab === tab ? "1px solid #7aa2f7" : "");
+    more.style.display = tab === "all" ? "" : "none";
+    const needle = canon(q.value);
+    if (tab === "fav" || tab === "ban") {
+      const names = (tab === "fav" ? lists.favorites : lists.blacklist).filter((n) => n.includes(needle));
+      if (!names.length) grid.textContent = tab === "fav" ? "No favorites yet - click ☆ next to an artist." : "Blacklist is empty.";
+      for (const n of names) grid.appendChild(artistRow(n, ""));
+      return;
+    }
+    if (tab === "presets") {
+      const match = (p) => (p.name + " " + p.artists).toLowerCase().includes(q.value.trim().toLowerCase());
+      heading("Your presets");
+      const own = lists.presets.filter(match);
+      if (!own.length) grid.insertAdjacentHTML("beforeend", `<div style="padding:6px 8px;color:#888">None yet - build a mix in the node and click “Save current as preset”.</div>`);
+      own.forEach((p) => grid.appendChild(presetRow(p, true)));
+      heading("Built-in presets (Illustrious / NoobAI)");
+      lists.builtin.filter(match).forEach((p) => grid.appendChild(presetRow(p, false)));
+      return;
+    }
     const p = new URLSearchParams({ q: q.value, model: mdl.value, offset });
-    const res = await api.fetchApi(`/tagforge/artists?${p}`);
-    const data = await res.json();
+    const data = await (await api.fetchApi(`/tagforge/artists?${p}`)).json();
     if (!data.db) { grid.textContent = "No tag database - run scripts/build_db.py and restart ComfyUI."; return; }
     offset = data.next;
-    const have = chosen();
-    for (const it of data.items) {
-      const c = document.createElement("div");
-      c.className = "tf-row" + (have.has(it.name) ? " added" : "");
-      c.innerHTML = `<span class="t"></span><span class="c"></span><a target="_blank" rel="noopener">profile ↗</a>`;
-      c.querySelector(".t").textContent = it.text;
-      c.querySelector(".c").textContent = `${it.count.toLocaleString()} posts`;
-      const link = c.querySelector("a");
-      link.href = it.url;
-      link.addEventListener("click", (e) => e.stopPropagation());
-      c.addEventListener("click", () => {
-        const v = widget.value.trim();
-        widget.value = (v ? v.replace(/,?$/, ",\n") : "") + it.text;
-        widget.callback?.(widget.value);
-        c.classList.add("added");
-        app.graph.setDirtyCanvas(true, true);
-      });
-      grid.appendChild(c);
-    }
+    for (const it of data.items)
+      if (!lists.blacklist.includes(it.name)) grid.appendChild(artistRow(it.name, `${it.count.toLocaleString()} posts`));
   }
+
   let t = null;
   q.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => load(true), 250); });
   mdl.addEventListener("change", () => load(true));
-  m.querySelector(".more").addEventListener("click", () => load(false));
+  more.addEventListener("click", () => load(false));
+  m.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => { tab = b.dataset.tab; load(true); }));
+  m.querySelector(".save").addEventListener("click", async () => {
+    const artists = widget.value.trim().replace(/,\s*$/, "");
+    if (!artists) return alert("The artists field is empty.");
+    const name = prompt("Preset name:");
+    if (!name?.trim()) return;
+    lists.presets = [...lists.presets, { name: name.trim(), artists }];
+    await saveLists({ presets: lists.presets });
+    if (tab === "presets") load(true);
+  });
   m.querySelector(".close").addEventListener("click", () => m.remove());
   m.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") m.remove(); });
-  load(true);
+  api.fetchApi("/tagforge/lists").then((r) => r.json()).then((l) => { lists = l; load(true); });
   q.focus();
 }
 

@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from aiohttp import web
 
-from . import translate as tr
+from . import lists, translate as tr
 from .nodes import _tagdb
 
 
@@ -49,3 +49,14 @@ def register(routes):
                   "url": "https://danbooru.donmai.us/artists/show_or_new?name=" + quote(name)}
                  for name, count, _ in rows]
         return web.json_response({"db": True, "items": items, "next": offset + len(rows)})
+
+    @routes.get("/tagforge/lists")
+    async def get_lists(request):
+        return web.json_response({**lists.load(), "builtin": lists.builtin()})
+
+    @routes.post("/tagforge/lists")
+    async def set_lists(request):
+        try:
+            return web.json_response(lists.save(await request.json()))
+        except (ValueError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)

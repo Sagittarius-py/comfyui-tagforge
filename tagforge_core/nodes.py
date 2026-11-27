@@ -1,6 +1,6 @@
 import random
 
-from . import db, translate as tr
+from . import db, lists, translate as tr
 
 MODELS = list(tr.MODELS)
 
@@ -42,6 +42,8 @@ class TagForgeArtists:
             "random_count": ("INT", {"default": 0, "min": 0, "max": 8,
                                      "tooltip": "0 = use the list. >0 = pick this many random artists from the 2000 most popular (older than the model's data cutoff)."}),
             "seed": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": True}),
+            "random_from": (["top", "favorites"], {"default": "top",
+                                                   "tooltip": "Random pool: the 2000 most popular artists, or your favorites. Blacklisted artists are never picked."}),
         }}
 
     RETURN_TYPES = ("STRING",)
@@ -49,17 +51,27 @@ class TagForgeArtists:
     FUNCTION = "run"
     CATEGORY = "TagForge"
 
-    def run(self, artists, model, random_count, seed):
-        names = [tr.canonical(tr.parse_chunk(a)["inner"]) for a in artists.replace("\n", ",").split(",") if a.strip()]
+    def run(self, artists, model, random_count, seed, random_from="top"):
+        picked = [tr.parse_chunk(a) for a in artists.replace("\n", ",").split(",") if a.strip()]
+        picked = [(tr.canonical(p["inner"]), p["weight"]) for p in picked]
         if random_count:
-            tagdb = _tagdb()
-            if tagdb is None:
-                raise ValueError("TagForge: random artists need the tag database (scripts/build_db.py).")
-            pool = [n for n, _, created in tagdb.artists("danbooru", limit=2000) if tr.before_cutoff(model, created)]
-            if not pool:
-                raise ValueError("TagForge: no artists in the database.")
-            names = random.Random(seed).sample(pool, min(random_count, len(pool)))
-        return (", ".join(tr.format_artist(n, model) for n in names) + ("," if names else ""),)
+            user = lists.load()
+            banned = set(user["blacklist"])
+            if random_from == "favorites":
+                pool = [n for n in user["favorites"] if n not in banned]
+                if not pool:
+                    raise ValueError("TagForge: no favorite artists yet (star them in Browse artists…).")
+            else:
+                tagdb = _tagdb()
+                if tagdb is None:
+                    raise ValueError("TagForge: random artists need the tag database (scripts/build_db.py).")
+                pool = [n for n, _, created in tagdb.artists("danbooru", limit=2000)
+                        if tr.before_cutoff(model, created) and n not in banned]
+                if not pool:
+                    raise ValueError("TagForge: no artists in the database.")
+            picked = [(n, None) for n in random.Random(seed).sample(pool, min(random_count, len(pool)))]
+        out = [f"({tr.format_artist(n, model)}:{w})" if w else tr.format_artist(n, model) for n, w in picked]
+        return (", ".join(out) + ("," if out else ""),)
 
 
 NODE_CLASS_MAPPINGS = {"TagForgeTranslate": TagForgeTranslate, "TagForgeArtists": TagForgeArtists}

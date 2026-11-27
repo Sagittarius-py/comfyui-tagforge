@@ -1,9 +1,10 @@
 """Self-check: python tests/test_core.py  (no ComfyUI, no network, in-memory DB)."""
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tagforge_core import db, translate as tr  # noqa: E402
+from tagforge_core import db, lists, nodes, translate as tr  # noqa: E402
 
 
 def fixture():
@@ -80,6 +81,40 @@ def run():
     # search: prefix + aliases, best count first
     names = [r["name"] for r in t.search("hats")] + [r["name"] for r in t.search("mik")]
     assert names == ["hatsune_miku", "hatsune_miku"], names
+
+    # user lists: validation, merge, atomic file
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "user_lists.json")
+        lists.save({"favorites": ["Quasar Cake", "quasar_cake"], "presets": [{"name": "Mix", "artists": "(a:0.8), b"}]}, path)
+        lists.save({"blacklist": ["new artist"]}, path)
+        assert lists.load(path) == {"favorites": ["quasar_cake"], "blacklist": ["new_artist"],
+                                    "presets": [{"name": "Mix", "artists": "(a:0.8), b"}]}, lists.load(path)
+        for bad in ({"favorites": "x"}, {"presets": ["x"]}):
+            try:
+                lists.save(bad, path)
+                raise AssertionError(bad)
+            except ValueError:
+                pass
+
+        # Artist Picker: weights kept, random pools honour favorites and blacklist
+        lists.USER_PATH = path
+        nodes._tagdb = lambda: t
+        picker = nodes.TagForgeArtists()
+        out, = picker.run("(quasarcake:0.8), @some_artist", "illustrious", 0, 0)
+        assert out == "(quasarcake:0.8), some artist,", out
+        out, = picker.run("", "anima", 0, 0)
+        assert out == "", out
+        out, = picker.run("", "anima", 3, 1)  # new_artist: blacklisted (and past the cutoff)
+        assert out == "@quasarcake,", out
+        out, = picker.run("", "anima", 3, 1, "favorites")
+        assert out == "@quasar cake,", out
+        lists.save({"blacklist": ["quasarcake", "new_artist"]}, path)
+        try:
+            picker.run("", "anima", 3, 1)
+            raise AssertionError("blacklisted artists must not be picked")
+        except ValueError:
+            pass
+        assert lists.builtin(), "data/presets.json must ship presets"
     print("OK")
 
 
